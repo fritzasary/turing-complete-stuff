@@ -1,0 +1,58 @@
+#pragma once
+#include <memory>
+#include <pybind11/pybind11.h>
+#include <string>
+#include <cstring>
+#include <unordered_map>
+#include "game.h"
+#include "tictactoe.h"   // for TicTacToeFactory
+
+
+namespace py = pybind11;
+
+// Factory base class
+class gameFactory {
+public:
+    virtual ~gameFactory() = default;
+    virtual std::unique_ptr<game> from_blob(const std::string &blob) const = 0;
+};
+
+
+template <typename board>
+void add_pickle_support(py::class_<board> &cls) {
+    cls.def(py::pickle(
+        [](const board &b) { // __getstate__: Board -> bytes
+            return py::bytes(reinterpret_cast<const char*>(&b), sizeof(board));
+        },
+        [](const py::bytes &bytes) { // __setstate__: bytes -> Board
+            board b;
+            std::string data = bytes;
+            if (data.size() != sizeof(board)) {
+                throw std::runtime_error("Invalid serialized board size");
+            }
+            std::memcpy(&b, data.data(), sizeof(board));
+            return b;
+        }
+    ));
+}
+
+
+// TicTacToe factory (example)
+class tictactoeFactory : public gameFactory {
+public:
+    std::unique_ptr<game> from_blob(const std::string &blob) const override {
+        t3board b;
+        if (blob.size() != sizeof(t3board))
+            throw std::runtime_error("Bad blob size");
+        std::memcpy(&b, blob.data(), sizeof(t3board));
+        return std::make_unique<tictactoe>(b);
+    }
+};
+
+// Registry for all factories
+inline std::unordered_map<std::string, std::unique_ptr<gameFactory>> registry;
+
+inline void register_factories() {
+    registry["tictactoe"] = std::make_unique<tictactoeFactory>();
+    // registry["connect4"] = ...
+}

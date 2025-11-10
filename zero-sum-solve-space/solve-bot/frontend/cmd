@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#echo "Remove?"
+#read remove
+
+#if [ $read == "1" ]; then
+#  rm zero_sums_database/tictactoe_positions.db
+#fi
+echo
+echo
+
+python3 interface.py
